@@ -20,6 +20,7 @@ model User {
   paypalId       String?
   otpCode        String?
   otpExpiry      DateTime?
+  isVerified     Boolean?   @default(false)
   resetToken     String?
   resetExpiry    DateTime?
   role           Role     @default(CUSTOMER)   // <<--- tambahan

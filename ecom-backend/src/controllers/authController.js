@@ -13,11 +13,23 @@ export const register = async (req, res) => {
     const exist = await prisma.user.findUnique({ where: { email } });
     if (exist) return res.status(400).json({ message: "Email already used" });
 
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 20 * 60 * 1000); // OTP berlaku 10 menit
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.create({
-      data: { name, username, email, password: hashedPassword },
+      data: { 
+        name, 
+        username, 
+        email, 
+        password: hashedPassword,
+        otpCode: otp,
+        otpExpiry: otpExpiry,
+        isVerified: false
+       },
     });
+
+    await sendEmail(email, "Your Verification Code", `Your OTP is: ${otp}`);
 
     res.json({ message: "User registered", user });
   } catch (error) {
@@ -31,6 +43,12 @@ export const login = async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(400).json({ message: "Invalid credentials" });
+
+    if (!user.isVerified) {
+      return res.status(403).json({ 
+        message: "Account not verified. Please check your email for OTP." 
+      });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
@@ -121,10 +139,14 @@ export const verifyOtp = async (req, res) => {
 
     await prisma.user.update({
       where: { email },
-      data: { otpCode: null, otpExpiry: null },
+      data: {
+        isVerified: true, 
+        otpCode: null,    
+        otpExpiry: null,
+      },
     });
 
-    res.json({ message: "OTP verified" });
+    res.json({ message: "OTP verified successfully. You can now log in." });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
