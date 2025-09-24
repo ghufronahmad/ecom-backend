@@ -1,0 +1,164 @@
+model User {
+  id             Int      @id @default(autoincrement())
+  name           String
+  username       String   @unique
+  email          String   @unique
+  phoneNumber    String?
+  dob            DateTime?
+  gender         String?
+  address        String?
+  password       String
+  paypalId       String?
+  otpCode        String?
+  otpExpiry      DateTime?
+  resetToken     String?
+  resetExpiry    DateTime?
+  role           Role     @default(CUSTOMER)   // <<--- tambahan
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Relasi
+  carts       Cart[]
+  stores      Store[]
+  orders      Order[]
+  memberships StoreCustomer[]
+  wishlists   Wishlist[]
+}
+
+model Store {
+  id          Int       @id @default(autoincrement())
+  ownerId     Int
+  name        String
+  description String?
+  status      String    @default("pending") // pending, approved, rejected
+  createdAt   DateTime  @default(now())
+
+  // Relasi
+  owner       User      @relation(fields: [ownerId], references: [id])
+  products    Product[]
+  orders      Order[]
+  customers   StoreCustomer[]
+}
+
+model Product {
+  id          Int       @id @default(autoincrement())
+  storeId     Int
+  name        String
+  description String?
+  price       Float
+  stock       Int
+  createdAt   DateTime  @default(now())
+
+  // Relasi
+  store       Store     @relation(fields: [storeId], references: [id])
+  orderItems  OrderItem[]
+  images      ProductImage[]
+  carts       Cart[]
+  wishlists   Wishlist[]
+}
+
+model Cart {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  productId Int
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model Wishlist {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  productId Int
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  productId Int
+  imageUrl  String
+
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Order {
+  id          Int        @id @default(autoincrement())
+  userId      Int
+  storeId     Int
+  status      String     @default("pending") // pending, paid, shipped, completed
+  totalAmount Float
+  createdAt   DateTime   @default(now())
+
+  // Relasi
+  user        User       @relation(fields: [userId], references: [id])
+  store       Store      @relation(fields: [storeId], references: [id])
+  items       OrderItem[]
+  payment     Payment?
+  shipping    Shipping?
+  invoice     Invoice?
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  price     Float
+
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id             Int      @id @default(autoincrement())
+  orderId        Int      @unique
+  paymentMethod  String   // midtrans, paypal, dll
+  status         String   // pending, success, failed
+  transactionId  String?
+  snapToken      String?  // <<--- tambahan
+  paidAt         DateTime?
+
+  order          Order    @relation(fields: [orderId], references: [id])
+}
+
+model Shipping {
+  id             Int      @id @default(autoincrement())
+  orderId        Int      @unique
+  courier        String
+  trackingNumber String?
+  status         String   // in_transit, delivered
+  updatedAt      DateTime @default(now())
+
+  order          Order    @relation(fields: [orderId], references: [id])
+}
+
+model Invoice {
+  id        Int      @id @default(autoincrement())
+  orderId   Int      @unique
+  pdfUrl    String
+  createdAt DateTime @default(now())
+
+  order     Order    @relation(fields: [orderId], references: [id])
+}
+
+model StoreCustomer {
+  id       Int   @id @default(autoincrement())
+  storeId  Int
+  userId   Int
+  isMember Boolean @default(false)
+
+  store    Store @relation(fields: [storeId], references: [id])
+  user     User  @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  ADMIN
+  SELLER
+  CUSTOMER
+}
