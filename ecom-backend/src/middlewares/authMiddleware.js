@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
+import prisma from '../prismaClient.js';
 
-export const authMiddleware = (req, res, next) => {
+export const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -11,9 +12,15 @@ export const authMiddleware = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // isinya { id, email, role }
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized: User not found' });
+    }
+
+    req.user = user; 
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Invalid or expired token" });
+    res.status(401).json({ message: 'Unauthorized: Invalid token' });
   }
 };
